@@ -18,7 +18,6 @@ import config
 
 app = Flask(__name__)
 
-
 class LineBot:
     def __init__(self):
         self.line_bot_api = LineBotApi(config.config["news"]["line.access.token"])
@@ -55,7 +54,7 @@ def getNews():
         soup.find("a", class_="teaser__link").select_one(".teaser__headline").text
     )
 
-    news_link = config.config["news"]["request.url"] + news_link
+    news_link = config.config["news"]["request.base.url"] + news_link
     resp = requests.get(news_link)
 
     paragraphs = []
@@ -63,10 +62,12 @@ def getNews():
     for a in soup.find_all("p", class_="textabsatz"):
         paragraphs.append(a.get_text())
 
-    send_save_request(news_title.replace('"', ''), "\n".join(paragraphs).strip())
-
+    # send_save_request(news_title.replace('"', ''), "\n".join(paragraphs).strip())
+    resp = send_generate_voca_request(news_title.replace('"', ''), "\n".join(paragraphs).strip())
+    msg = news_link + "\n" + resp.text
     linebot = LineBot()
-    return linebot.send_message(news_title, news_link)
+    
+    return linebot.send_message(news_title, msg)
 
 
 @app.route("/callback", methods=["POST"])
@@ -81,10 +82,8 @@ def receive_message():
         # print (config.config["app"]["analyzer.key"])
         key = config.config["app"]["analyzer.key"].encode(encoding = 'UTF-8')
         
-
         linebot = LineBot()
         linebot.handler.handle(body_str, signature)
-
 
         analyzer_signature = hmac.new(
             key=key,
@@ -129,6 +128,18 @@ def send_save_request(title, content):
         return "error"
     logging.info(resp)
     return "OK"
+
+def send_generate_voca_request(title, content):
+  data = {"title": title, "content": content}
+  try:
+      resp = requests.post(
+          f"{config.config['analyzer']['host']}:{config.config['analyzer']['port']}{config.config['analyzer']['gen.voca.url']}",
+          json=data,
+      )
+  except Exception as e:
+      logging.error(traceback.format_exc())
+      return "error"
+  return resp
 
 
 @app.route("/", methods=["GET"])
