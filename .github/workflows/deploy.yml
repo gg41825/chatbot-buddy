@@ -1,0 +1,42 @@
+# .github/workflows/deploy.yml
+
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches:
+      - master  # Change this to whatever branch you want to trigger the deployment
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout code from the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up SSH agent for authentication with DigitalOcean Droplet
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.DO_SSH_KEY }}
+
+      # SSH into the Droplet and deploy the changes
+      - name: Deploy to DigitalOcean
+        run: |
+          ssh -o StrictHostKeyChecking=no root@209.38.182.9 << 'EOF'
+            cd /root/projects/news_notification
+            git pull origin master  # Pull the latest code from GitHub
+
+            # Optional: Set up a virtual environment and install dependencies
+            python3 -m venv venv
+            source venv/bin/activate
+            pip install -r requirements.txt
+
+            # Restart your web server (e.g., Gunicorn, Nginx) to apply changes
+              # Change this depending on your server setup
+
+            # Optional: Any additional deployment steps (e.g., migrations)
+            # python manage.py migrate  # For Django, or other migrations as needed
+          EOF
