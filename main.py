@@ -63,8 +63,8 @@ def getNews():
         paragraphs.append(a.get_text())
 
     # send_save_request(news_title.replace('"', ''), "\n".join(paragraphs).strip())
-    resp = send_generate_voca_request(news_title.replace('"', ''), "\n".join(paragraphs).strip())
-    msg = news_link + "\n" + resp.text
+    # resp = send_generate_voca_request(news_title.replace('"', ''), "\n".join(paragraphs).strip())
+    msg = news_link
     linebot = LineBot()
     
     return linebot.send_message(news_title, msg)
