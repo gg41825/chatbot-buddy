@@ -1,2 +1,38 @@
-service_real.conf
+# Configuration files with sensitive data
+service.conf
+
+# Private scraper implementations (not for public GitHub)
+app/services/scrapers/*_private.py
+app/services/scrapers/my_*.py
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
 venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite
+
+# Environment variables
+.env
