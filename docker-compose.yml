@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chatbot-buddy
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      # App Configuration
+      APP_HOST: ${APP_HOST:-0.0.0.0}
+      APP_PORT: ${APP_PORT:-8080}
+      APP_ANALYZER_KEY: ${APP_ANALYZER_KEY}
+
+      # MySQL Configuration
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_USERNAME: ${MYSQL_USERNAME}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DBNAME: ${MYSQL_DBNAME}
+
+      # OpenAI Configuration
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_LANG_MODEL: ${OPENAI_LANG_MODEL:-gpt-3.5-turbo}
+
+      # LINE Configuration
+      LINE_ACCESS_TOKEN: ${LINE_ACCESS_TOKEN}
+      LINE_USER_ID: ${LINE_USER_ID}
+      LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET}
+
+      # News Scraper Configuration
+      NEWS_SCRAPER_TYPE: ${NEWS_SCRAPER_TYPE:-ts_learn_german}
+      NEWS_REQUEST_URL: ${NEWS_REQUEST_URL:-https://www.tagesschau.de/wissen}
+
+      # Analyzer Configuration
+      ANALYZER_HOST: ${ANALYZER_HOST:-http://localhost}
+      ANALYZER_PORT: ${ANALYZER_PORT:-8080}
+      ANALYZER_ASK_BOT_URL: ${ANALYZER_ASK_BOT_URL:-/ask_bot}
+      ANALYZER_GEN_VOCA_URL: ${ANALYZER_GEN_VOCA_URL:-/gen_voca}
+
+    networks:
+      - chatbot-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  mysql:
+    image: mariadb:10.5
+    container_name: mariadb
+    restart: unless-stopped
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DBNAME}
+      MYSQL_USER: ${MYSQL_USERNAME}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    networks:
+      - chatbot-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  chatbot-network:
+    driver: bridge

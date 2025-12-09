@@ -1,0 +1,8 @@
+-- CREATE TABLE
+CREATE TABLE IF NOT EXISTS vocabularies (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    german VARCHAR(200) NOT NULL,
+    english TEXT,
+    chinese TEXT,
+    sentence TEXT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

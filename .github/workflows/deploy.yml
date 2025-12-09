@@ -1,33 +1,61 @@
-# .github/workflows/deploy.yml
-
-name: Auto Deploy to Server
+name: Deploy to Cloud Run
 
 on:
   push:
     branches:
-      - master  # Change this to whatever branch you want to trigger the deployment
+      - cloud-run-deployment
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
-      # Checkout code from the repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Set up SSH agent for authentication with DigitalOcean Droplet
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.5.3
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          ssh-private-key: ${{ secrets.DO_SSH_KEY }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # SSH into the Droplet and deploy the changes
-      - name: Deploy to DigitalOcean
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+
+      - name: Build and Push Docker Image
         run: |
-          ssh -o StrictHostKeyChecking=no root@209.38.182.9 << 'EOF'
-            cd ~/projects/news_notification
-            git pull origin master  # Pull the latest code from GitHub
-            source venv/bin/activate
-            pip install -r requirements.txt
-          EOF
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/${{ secrets.GCP_ARTIFACT_REPO }}/chatbot-buddy:${{ github.sha }}"
+          echo "Building image: $IMAGE"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ secrets.CLOUD_RUN_SERVICE }} \
+            --image "$IMAGE" \
+            --region "$REGION" \
+            --platform managed \
+            --allow-unauthenticated \
+            \
+            --set-secrets APP_ANALYZER_KEY=app-analyzer-key:latest \
+            --set-secrets LINE_ACCESS_TOKEN=line-access-token:latest \
+            --set-secrets LINE_CHANNEL_SECRET=line-channel-secret:latest \
+            --set-secrets MYSQL_PASSWORD=mysql-password:latest \
+            --set-secrets OPENAI_API_KEY=openai-api-key:latest \
+            \
+            --set-env-vars NEWS_SCRAPER_TYPE=${{ secrets.NEWS_SCRAPER_TYPE }} \
+            --set-env-vars NEWS_REQUEST_URL=${{ secrets.NEWS_REQUEST_URL }} \
+            --set-env-vars LINE_USER_ID=${{ secrets.LINE_USER_ID }} \
+            --set-env-vars MYSQL_HOST=${{ secrets.MYSQL_HOST }} \
+            --set-env-vars MYSQL_PORT=${{ secrets.MYSQL_PORT }} \
+            --set-env-vars MYSQL_USERNAME=${{ secrets.MYSQL_USERNAME }} \
+            --set-env-vars MYSQL_DBNAME=${{ secrets.MYSQL_DBNAME }} \
+            --set-env-vars OPENAI_LANG_MODEL=${{ secrets.OPENAI_LANG_MODEL }}
