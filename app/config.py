@@ -1,24 +1,45 @@
-import configparser
 import os
+from pathlib import Path
 
-config = configparser.ConfigParser()
-config.allow_no_value = True
-config.read('service.conf')
+# ========== Load .env file ==========
+try:
+    from dotenv import load_dotenv
+    
+    # .env file location
+    env_path = Path(__file__).parent.parent / '.env'
+    
+    if env_path.exists():
+        load_dotenv(env_path)
+        if int(os.getenv("DEV_MODE", "0")):
+            print(f"[Config] Loaded .env from: {env_path}")
+    else:
+        print(f"[Config] .env not found at {env_path}")
+        print(f"[Config] Using environment variables or default values")
+        
+except ImportError:
+    print("[Config] python-dotenv not installed")
+    print("[Config] Using environment variables only")
+    print("[Config] Install with: pip install python-dotenv")
 
-# Support environment variables for Cloud Run deployment
-# This allows using Secret Manager or environment variables instead of service.conf
-def get_config_value(section, key, fallback=None):
-    """
-    Get configuration value from environment variable first, then fall back to config file.
-    Environment variable format: SECTION_KEY (e.g., MYSQL_HOST, MYSQL_PORT)
-    """
-    env_key = f"{section.upper()}_{key.upper().replace('.', '_')}"
-    env_value = os.getenv(env_key)
+# app
+APP_HOST = os.getenv("APP_HOST", "127.0.0.1")
+APP_PORT = int(os.getenv("APP_PORT", 8080))
+APP_ANALYZER_KEY = os.getenv("APP_ANALYZER_KEY")
 
-    if env_value is not None:
-        return env_value
+# news
+NEWS_SCRAPER_TYPE = os.getenv("NEWS_SCRAPER_TYPE")
+NEWS_REQUEST_URL = os.getenv("NEWS_REQUEST_URL")
+LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
+LINE_USER_ID = os.getenv("LINE_USER_ID")
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 
-    try:
-        return config.get(section, key)
-    except (configparser.NoSectionError, configparser.NoOptionError):
-        return fallback
+# mysql
+MYSQL_HOST = os.getenv("MYSQL_HOST")
+MYSQL_PORT = int(os.getenv("MYSQL_PORT", 3306))
+MYSQL_USERNAME = os.getenv("MYSQL_USERNAME")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
+MYSQL_DBNAME = os.getenv("MYSQL_DBNAME")
+
+# openai
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_LANG_MODEL = os.getenv("OPENAI_LANG_MODEL")

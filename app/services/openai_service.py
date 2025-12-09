@@ -1,25 +1,27 @@
 import openai
 import json
+from typing import List, Dict
 import logging
-from app.config import config, get_config_value
+import re
+from app import config
 
+openai.api_key = config.OPENAI_API_KEY
 
-def ask_question(messages: list[str]):
+def ask_question(messages: list) -> Dict:
     if not messages:
-        return ""
+        return {}
 
-    # default role to user
-    messages = {"role": "user", "content": messages} if "role" not in messages[0] else messages
+    if not isinstance(messages[0], dict):
+        messages = [{"role": "user", "content": messages[0]}]
 
-    openai.api_key = get_config_value("openai", "api.key")
     response = openai.ChatCompletion.create(
-        model=get_config_value("openai", "lang.model", "gpt-3.5-turbo"),
+        model=config.OPENAI_LANG_MODEL,
         messages=messages
     )
     return response
 
 
-def extract_vocabularies(text: str, level: str = "B2-C1", count: int = 5):
+def extract_vocabularies(text: str, level: str = "B2-C1", count: int = 10) -> List[Dict[str, str]]:
     """
     Extract German vocabularies from article text using OpenAI.
 
@@ -32,7 +34,7 @@ def extract_vocabularies(text: str, level: str = "B2-C1", count: int = 5):
         List of dictionaries with keys: german, english, chinese, sentence
     """
     try:
-        openai.api_key = get_config_value("openai", "api.key")
+        openai.api_key = config.OPENAI_API_KEY
 
         prompt = f"""You are a German language instructor. Analyze the following German article and extract exactly {count} vocabulary items at the {level} level.
 
@@ -58,7 +60,7 @@ Text:
 Important: Output only the JSON array without any additional text or explanation, and avoid using emojis and —"""
 
         response = openai.ChatCompletion.create(
-            model=get_config_value("openai", "lang.model", "gpt-3.5-turbo"),
+            model=config.OPENAI_LANG_MODEL,
             messages=[
                 {
                     "role": "system",
@@ -71,6 +73,9 @@ Important: Output only the JSON array without any additional text or explanation
             ],
             temperature=0.7
         )
+        choices = response.get("choices")
+        if not choices or not choices[0].get("message"):
+            raise ValueError("OpenAI returned no choices or message.")
 
         content = response['choices'][0]['message']['content'].strip()
 
@@ -97,7 +102,7 @@ Important: Output only the JSON array without any additional text or explanation
         return []
 
 
-def format_vocabularies_for_line(vocabularies: list) -> str:
+def format_vocabularies_for_line(vocabularies: List[Dict[str, str]]) -> str:
     """
     Format vocabularies list into a readable message for LINE.
 

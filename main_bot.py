@@ -1,11 +1,10 @@
 from waitress import serve
 from app import create_app
-from app.config import get_config_value
-
+from app import config
 if __name__ == '__main__':
     app = create_app()
-    host = get_config_value('app', 'host', '0.0.0.0')
-    port = int(get_config_value('app', 'port', '80'))
+    host = config.APP_HOST
+    port = int(config.APP_PORT)
 
     print(f"Starting server on {host}:{port}")
     serve(app, host=host, port=port)

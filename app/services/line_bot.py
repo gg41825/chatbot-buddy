@@ -1,18 +1,17 @@
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import TextSendMessage
-from app.config import config
-
+from app import config
 
 class LineBot:
     def __init__(self):
-        self.line_bot_api = LineBotApi(config["news"]["line.access.token"])
-        self.handler = WebhookHandler(config["news"]["line.channel.secret"])
+        self.line_bot_api = LineBotApi(config.LINE_ACCESS_TOKEN)
+        self.handler = WebhookHandler(config.LINE_CHANNEL_SECRET)
 
     def send_message(self, title, msg):
         """Send push message to user"""
         try:
             self.line_bot_api.push_message(
-                config["news"]["line.user.id"],
+                config.LINE_USER_ID,
                 TextSendMessage(text=f"Your daily news: {title}\nLink: {msg}"),
             )
             return "OK"

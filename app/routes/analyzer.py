@@ -3,13 +3,9 @@ import traceback
 
 from flask import Blueprint, request
 
-from app.config import config
-from app.services.openai_service import (
-    ask_question,
-    extract_vocabularies,
-    format_vocabularies_for_line,
-)
-from app.services.signature import verify_signature
+from app.services.openai_service import ask_question
+from app.services.analyzer import process_german_article
+
 from app.utils.response import success_response, error_response
 
 analyzer_bp = Blueprint("analyzer", __name__)
@@ -57,7 +53,7 @@ def get_article():
         return error_response(
             "Internal server error", 500, "INTERNAL_ERROR", details=str(e)
         )
-
+    
 
 # For directly accessing Bot for generating vocabularies
 @analyzer_bp.route("/gen_voca", methods=["POST"])
@@ -86,19 +82,15 @@ def generate_voca():
             return error_response("Missing signature headers", 401, "MISSING_SIGNATURE")
 
         # Use extract_vocabularies to get structured vocabulary data
-        vocabularies = extract_vocabularies(text, level="B2-C2")
+        vocabularies, _ = process_german_article(text)
 
         if not vocabularies:
             logging.error("Failed to extract vocabularies")
             return error_response("Failed to generate vocabularies", 500, "AI_ERROR")
 
-        # Format vocabularies for response
-        formatted_text = format_vocabularies_for_line(vocabularies)
-
         return success_response(
             data={
                 "vocabularies": vocabularies,
-                "formatted_text": formatted_text,
                 "count": len(vocabularies),
             },
             message="Vocabularies generated successfully",
