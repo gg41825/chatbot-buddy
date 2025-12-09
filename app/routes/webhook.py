@@ -18,45 +18,49 @@ webhook_bp = Blueprint('webhook', __name__)
 def receive_message():
     """Handle LINE bot webhook callback"""
     body_str = request.get_data(as_text=True)
-    body = json.loads(body_str)
+    try:
+        body = json.loads(body_str)
+    except json.JSONDecodeError:
+        logging.error("Invalid JSON in request body")
+        return error_response("Invalid JSON", 400, "INVALID_JSON")
 
     try:
-        signature = request.headers["X-Line-Signature"]
+        signature = request.headers.get("X-Line-Signature")
+        if not signature:
+            return error_response("Missing LINE signature", 400, "MISSING_SIGNATURE")
+
         linebot = LineBot()
         linebot.handler.handle(body_str, signature)
 
-        # Get message text
-        event = body["events"][0]
-        if event["type"] != "message" or event["message"]["type"] != "text":
+        events = body.get("events", [])
+        if not events:
+            return "OK"
+
+        event = events[0]
+        if event.get("type") != "message" or event.get("message", {}).get("type") != "text":
             return "OK"
 
         message_text = event["message"]["text"]
         reply_token = event["replyToken"]
 
         if GENERATE_VOCA in message_text:
-            # Process German article
             response_text = process_german_article(message_text)
-            linebot.reply(reply_token, response_text)
         else:
-            # Fallback to normal analyzer behavior (AI bot)
             response_text = ask_question(message_text)
-            linebot.reply(reply_token, response_text)
-        return success_response(
-            data={"response": response_text},
-            message="Question answered successfully",
-        )
+
+        linebot.reply(reply_token, response_text)
 
     except InvalidSignatureError:
         logging.error("Invalid signature. Please check your channel access token/channel secret.")
         return error_response("Invalid LINE signature", 400, "INVALID_LINE_SIGNATURE")
-    except KeyError as e:
-        logging.error(f"Missing key in webhook data: {str(e)}")
-        return error_response(f"Missing required field: {str(e)}", 400, "MISSING_FIELD")
     except Exception as e:
         logging.error(traceback.format_exc())
         return error_response("Internal server error", 500, "INTERNAL_ERROR", details=str(e))
 
-    return "OK"
+    return success_response(
+        data={"response": response_text},
+        message="Question answered successfully",
+    )
 
 
 @webhook_bp.route("/", methods=["GET"])
