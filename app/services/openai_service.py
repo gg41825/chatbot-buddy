@@ -2,12 +2,11 @@ import openai
 import json
 from typing import List, Dict
 import logging
-import re
 from app import config
 
 openai.api_key = config.OPENAI_API_KEY
 
-def ask_question(messages: list) -> Dict:
+def ask_question(messages: list) -> str:
     if not messages:
         return {}
 
@@ -18,7 +17,7 @@ def ask_question(messages: list) -> Dict:
         model=config.OPENAI_LANG_MODEL,
         messages=messages
     )
-    return response
+    return response.choices[0].message.content
 
 
 def extract_vocabularies(text: str, level: str = "B2-C1", count: int = 10) -> List[Dict[str, str]]:
@@ -100,33 +99,3 @@ Important: Output only the JSON array without any additional text or explanation
     except Exception as e:
         logging.error(f"Error extracting vocabularies: {str(e)}")
         return []
-
-
-def format_vocabularies_for_line(vocabularies: List[Dict[str, str]]) -> str:
-    """
-    Format vocabularies list into a readable message for LINE.
-
-    Args:
-        vocabularies: List of vocabulary dictionaries
-
-    Returns:
-        Formatted string for LINE message
-    """
-    if not vocabularies:
-        return "Sorry, I couldn't extract vocabularies from the text."
-
-    message = f"Found {len(vocabularies)} German vocabularies:\n\n"
-
-    for i, vocab in enumerate(vocabularies, 1):
-        message += f"{i}. {vocab['german']}\n"
-        message += f"{vocab['english']}\n"
-        message += f"{vocab['chinese']}\n"
-        if vocab.get('sentence'):
-            # Truncate long sentences
-            sentence = vocab['sentence']
-            if len(sentence) > 100:
-                sentence = sentence[:97] + "..."
-            message += f"{sentence}\n"
-        message += "\n"
-
-    return message.strip()

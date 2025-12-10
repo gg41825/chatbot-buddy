@@ -5,7 +5,7 @@ from flask import Blueprint
 
 from app.services.line_bot import LineBot
 from app.services.news_scraper import scrape_news
-from app.utils.response import success_response, error_response
+from app.utils.response_format import success_response, error_response
 
 news_bp = Blueprint("news", __name__)
 

@@ -1,7 +1,8 @@
 import logging
 from typing import List, Dict, Tuple
 from app.models.database import Database
-from app.services.openai_service import extract_vocabularies, format_vocabularies_for_line
+from app.services.openai_service import extract_vocabularies
+from app.utils.response_format import format_vocabularies_for_line
 
 
 def process_german_article(text: str) -> Tuple[List[Dict], str]:

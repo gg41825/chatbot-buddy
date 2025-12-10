@@ -6,7 +6,7 @@ from flask import Blueprint, request
 from app.services.openai_service import ask_question
 from app.services.analyzer import process_german_article
 
-from app.utils.response import success_response, error_response
+from app.utils.response_format import success_response, error_response
 
 analyzer_bp = Blueprint("analyzer", __name__)
 
