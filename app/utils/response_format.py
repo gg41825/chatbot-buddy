@@ -64,7 +64,7 @@ def format_vocabularies_for_line(vocabularies: List[Dict[str, str]]) -> str:
         Formatted string for LINE message
     """
     if not vocabularies:
-        return "Sorry, I couldn't extract vocabularies from the text."
+        return "Sorry, no vocabularies found."
 
     message = f"Found {len(vocabularies)} German vocabularies:\n\n"
 

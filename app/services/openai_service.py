@@ -33,8 +33,6 @@ def extract_vocabularies(text: str, level: str = "B2-C1", count: int = 10) -> Li
         List of dictionaries with keys: german, english, chinese, sentence
     """
     try:
-        openai.api_key = config.OPENAI_API_KEY
-
         prompt = f"""You are a German language instructor. Analyze the following German article and extract exactly {count} vocabulary items at the {level} level.
 
 For each vocabulary item, provide the following fields:

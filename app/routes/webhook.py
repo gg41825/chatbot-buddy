@@ -6,20 +6,34 @@ import traceback
 from linebot.exceptions import InvalidSignatureError
 
 from app.constants.line_request_constants import GENERATE_VOCA
-from app.services.analyzer import gen_and_save_vocabularies
-from app.services.openai_service import ask_question
+from app.services.openai_service import ask_question, extract_vocabularies
 from app.services.line_bot import LineBot
-from app.utils.response_format import success_response, error_response
-
+from app.utils.response_format import success_response, error_response, format_vocabularies_for_line
 webhook_bp = Blueprint('webhook', __name__)
 
+def handle_line_message(message_text: str) -> str:
+    "Based on the message content, decide whether to ask a question or generate voca list"
+    
+    if GENERATE_VOCA in message_text:
+        vocabularies_data = extract_vocabularies(message_text)
+        response_text = format_vocabularies_for_line(vocabularies_data)
+        
+    else:
+        response_text = ask_question(message_text) 
+
+    if not isinstance(response_text, str):
+        error_msg = f"Business logic returned non-string type: {type(response_text)}"
+        logging.error(error_msg)
+        return "Internal service error: Invalid response format."
+    
+    return response_text
 
 @webhook_bp.route("/callback", methods=["POST"])
 def receive_message():
     """Handle LINE bot webhook callback"""
     body_str = request.get_data(as_text=True)
     
-    # Init token
+    # Init token and text
     reply_token = None
     response_text = None 
     
@@ -29,30 +43,22 @@ def receive_message():
             return error_response("Missing LINE signature", 400, "MISSING_SIGNATURE")
 
         linebot = LineBot()
+        
         linebot.handler.handle(body_str, signature)
-
         body = json.loads(body_str)
         events = body.get("events", [])
         
-        # LINE Webhook cound send multiple events at a time
+        if not events:
+            return "OK"
+        
+        # Usually, only one reply is needed, so just returned it
+        # For non-text messages, continue looping or end directly, returning "OK" in the end
         for event in events:
-            # Need to deal with this request only when there is message.text
             if event.get("type") == "message" and event.get("message", {}).get("type") == "text":
                 
                 message_text = event["message"]["text"]
                 reply_token = event["replyToken"]
-                
-                if GENERATE_VOCA in message_text:
-                    _, response_text = gen_and_save_vocabularies(message_text)
-                else:
-                    response_text = ask_question(message_text) 
-
-                # Make sure that response_text is string
-                if not isinstance(response_text, str):
-                    logging.error(f"Function returned non-string: {type(response_text)}")
-                    response_text = "Internal error: Invalid service response format"
-                
-                # Usually, only one reply is needed, so just returned it
+                response_text = handle_line_message(message_text)
                 linebot.reply(reply_token, response_text)
                 
                 return success_response(
@@ -61,15 +67,18 @@ def receive_message():
                 )
 
     except InvalidSignatureError:
-        logging.error("Invalid signature. Please check your channel access token/channel secret.")
-        return error_response("Invalid LINE signature", 400, "INVALID_LINE_SIGNATURE")
+        error_msg = "Invalid signature. Please check your channel access token/channel secret."
+        logging.error(error_msg)
+        return error_response(error_msg, 400, "INVALID_LINE_SIGNATURE")
         
     except json.JSONDecodeError:
-        logging.error("Invalid JSON in request body")
-        return error_response("Invalid JSON", 400, "INVALID_JSON")
+        error_msg = "Invalid JSON in request body"
+        logging.error(error_msg)
+        return error_response(error_msg, 400, "INVALID_JSON")
 
     except Exception as e:
-        logging.error(traceback.format_exc())
+        error_trace = traceback.format_exc()
+        logging.error(f"Internal server error processing LINE message: {error_trace}")
         
         if reply_token:
             error_user_message = "An internal error has occurred. Please try again later."
@@ -78,9 +87,12 @@ def receive_message():
             except Exception as reply_error:
                 logging.error(f"Failed to send error reply: {reply_error}")
             
-        return error_response("Internal server error", 500, "INTERNAL_ERROR", details=str(e))
-
-    # No events to process (e.g., an empty events list), or if a non-text message has been processed
+        return error_response(
+            "Internal server error", 
+            500, 
+            "INTERNAL_ERROR", 
+            details=f"See logs for traceback. Exception: {str(e)}"
+        )
     return "OK"
 
 
