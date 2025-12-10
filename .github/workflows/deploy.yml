@@ -3,12 +3,15 @@ name: Deploy to Cloud Run
 on:
   push:
     branches:
-      - cloud-run-deployment
+      - master
   workflow_dispatch:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.GCP_REGION }}
+  SERVICE_NAME: ${{ secrets.GCP_SERVICE_NAME }}
+  IMAGE_NAME: ${{ secrets.GCP_IMAGE_NAME }}
+  REPOSITORY: ${{ secrets.GCP_ARTIFACT_REPO }}
 
 jobs:
   deploy:
@@ -29,33 +32,49 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
 
-      - name: Build and Push Docker Image
+      - name: Build Docker image
         run: |
-          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/${{ secrets.GCP_ARTIFACT_REPO }}/chatbot-buddy:${{ github.sha }}"
-          echo "Building image: $IMAGE"
-          docker build -t "$IMAGE" .
-          docker push "$IMAGE"
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+          IMAGE_BASE_PATH="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME"
+
+          docker build \
+            -t "$IMAGE_BASE_PATH:$GITHUB_SHA" \
+            -t "$IMAGE_BASE_PATH:latest" \
+            -f Dockerfile \
+            .
+    
+          echo "IMAGE_TO_DEPLOY=$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:latest" >> $GITHUB_ENV
+          echo "Image tag set to $IMAGE_BASE_PATH:latest"
+
+      - name: Push Docker image
+        run: |
+          docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:$GITHUB_SHA
+          docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:latest
 
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy ${{ secrets.CLOUD_RUN_SERVICE }} \
-            --image "$IMAGE" \
-            --region "$REGION" \
+          gcloud run deploy "$SERVICE_NAME" \
+            --image "$IMAGE_TO_DEPLOY" \
             --platform managed \
+            --region "$REGION" \
             --allow-unauthenticated \
-            \
+            --port 8080 \
+            --memory 4Gi \
+            --cpu 2 \
+            --timeout 300 \
+            --min-instances 0 \
+            --max-instances 3 \
+            --set-secrets APP_HOST=APP_HOST:latest\
+            --set-secrets APP_PORT=APP_PORT:latest\
             --set-secrets APP_ANALYZER_KEY=app-analyzer-key:latest \
             --set-secrets LINE_ACCESS_TOKEN=line-access-token:latest \
             --set-secrets LINE_CHANNEL_SECRET=line-channel-secret:latest \
             --set-secrets MYSQL_PASSWORD=mysql-password:latest \
             --set-secrets OPENAI_API_KEY=openai-api-key:latest \
-            \
-            --set-env-vars NEWS_SCRAPER_TYPE=${{ secrets.NEWS_SCRAPER_TYPE }} \
-            --set-env-vars NEWS_REQUEST_URL=${{ secrets.NEWS_REQUEST_URL }} \
-            --set-env-vars LINE_USER_ID=${{ secrets.LINE_USER_ID }} \
-            --set-env-vars MYSQL_HOST=${{ secrets.MYSQL_HOST }} \
-            --set-env-vars MYSQL_PORT=${{ secrets.MYSQL_PORT }} \
-            --set-env-vars MYSQL_USERNAME=${{ secrets.MYSQL_USERNAME }} \
-            --set-env-vars MYSQL_DBNAME=${{ secrets.MYSQL_DBNAME }} \
-            --set-env-vars OPENAI_LANG_MODEL=${{ secrets.OPENAI_LANG_MODEL }}
+            --set-secrets NEWS_SCRAPER_TYPE=NEWS_SCRAPER_TYPE:latest \
+            --set-secrets NEWS_REQUEST_URL=NEWS_REQUEST_URL:latest \
+            --set-secrets LINE_USER_ID=LINE_USER_ID:latest \
+            --set-secrets MYSQL_HOST=MYSQL_HOST:latest \
+            --set-secrets MYSQL_PORT=MYSQL_PORT:latest \
+            --set-secrets MYSQL_USERNAME=MYSQL_USERNAME:latest \
+            --set-secrets MYSQL_DBNAME=MYSQL_DBNAME:latest \
+            --set-secrets OPENAI_LANG_MODEL=OPENAI_LANG_MODEL:latest
