@@ -4,7 +4,7 @@ import traceback
 from flask import Blueprint, request
 
 from app.services.openai_service import ask_question
-from app.services.analyzer import process_german_article
+from app.services.analyzer import gen_and_save_vocabularies
 
 from app.utils.response_format import success_response, error_response
 
@@ -82,7 +82,7 @@ def generate_voca():
             return error_response("Missing signature headers", 401, "MISSING_SIGNATURE")
 
         # Use extract_vocabularies to get structured vocabulary data
-        vocabularies, _ = process_german_article(text)
+        vocabularies, _ = gen_and_save_vocabularies(text)
 
         if not vocabularies:
             logging.error("Failed to extract vocabularies")

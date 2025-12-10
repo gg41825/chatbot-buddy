@@ -70,7 +70,6 @@ Important: Output only the JSON array without any additional text or explanation
                     "content": prompt
                 }
             ],
-            temperature=0.7
         )
         choices = response.get("choices")
         if not choices or not choices[0].get("message"):

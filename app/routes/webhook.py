@@ -6,7 +6,7 @@ import traceback
 from linebot.exceptions import InvalidSignatureError
 
 from app.constants.line_request_constants import GENERATE_VOCA
-from app.services.analyzer import process_german_article
+from app.services.analyzer import gen_and_save_vocabularies
 from app.services.openai_service import ask_question
 from app.services.line_bot import LineBot
 from app.utils.response_format import success_response, error_response
@@ -43,7 +43,7 @@ def receive_message():
                 reply_token = event["replyToken"]
                 
                 if GENERATE_VOCA in message_text:
-                    response_text = process_german_article(message_text)
+                    _, response_text = gen_and_save_vocabularies(message_text)
                 else:
                     response_text = ask_question(message_text) 
 

@@ -1,40 +1,43 @@
 import logging
+import traceback
+
 from typing import List, Dict, Tuple
 from app.models.database import Database
 from app.services.openai_service import extract_vocabularies
 from app.utils.response_format import format_vocabularies_for_line
 
 
-def process_german_article(text: str) -> Tuple[List[Dict], str]:
+def gen_and_save_vocabularies(text: str) -> Tuple[List[Dict], str]:
     """
-    Process German article: extract vocabularies, save to DB, and format response.
+    Generate and save vocabularies: extract vocabularies from article, save to DB
 
     Args:
         text: The German text
 
     Returns:
-        Formatted response message
+        vocabulary list, response message
     """
     try:
-        logging.info("Processing German article...")
+        logging.info("Processing text...")
 
         # Extract vocabularies using OpenAI
         vocabularies = extract_vocabularies(text, level="B2-C1", count=10)
 
         if not vocabularies:
-            return [], "Sorry, I couldn't extract vocabularies from the article. Please make sure it's a German text."
-
+            error_msg = "Sorry, I couldn't extract vocabularies from the article. Please make sure it's a German text."
+            logging.warning(error_msg)
+            return [], error_msg
+        
         # Save vocabularies to database
+        logging.info("Saving to DB...")
         db = Database()
         db.save_vocabularies(vocabularies)
+        res_msg = f"Saved{len(vocabularies)} vocabularies"
+        logging.info(res_msg)
 
-        logging.info(f"Saved{len(vocabularies)} vocabularies")
-
-        # Format response for LINE
-        line_response = format_vocabularies_for_line(vocabularies)
-
-        return vocabularies, line_response
+        return vocabularies, res_msg
 
     except Exception as e:
-        logging.error(f"Error processing German article: {str(e)}")
-        return [], f"Sorry, an error occurred while processing your article: {str(e)}"
+        error_msg = f"Sorry, an error occurred while generating and save vocabularies: {str(e)}"
+        logging.error(error_msg)
+        return [], error_msg
