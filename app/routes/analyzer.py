@@ -125,6 +125,5 @@ def generate_voca():
 
 
 @analyzer_bp.route("/", methods=["GET"])
-@feature_flag_check
 def home():
-    return "Welcome to Ginny's Analyzer"
+    return "Welcome to Ginny's ChatBot"
